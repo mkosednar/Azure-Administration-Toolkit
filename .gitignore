@@ -1,0 +1,10 @@
+# Local reports and tenant data
+Reports/
+*.csv
+*.log
+
+# Local parameter overrides and secrets
+*.local.bicepparam
+*.secrets.json
+*.pfx
+*.pem
