@@ -111,7 +111,7 @@ Describe "ConvertTo-AzureVMInventoryRecord" {
             Id = "/subscriptions/test/resourceGroups/rg-test/providers/Microsoft.Compute/virtualMachines/vm-incomplete"
         }
 
-        { $script:record = ConvertTo-AzureVMInventoryRecord -VirtualMachine $vm } | Should -Not -Throw
+        $record = ConvertTo-AzureVMInventoryRecord -VirtualMachine $vm
         $record.VmSize | Should -BeNullOrEmpty
         $record.PowerState | Should -BeNullOrEmpty
         $record.OsType | Should -BeNullOrEmpty
