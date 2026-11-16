@@ -1,23 +1,23 @@
 [CmdletBinding()]
 param(
+    [Parameter(Mandatory)]
+    [ValidatePattern('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')]
     [string]$SubscriptionId,
+    [Parameter()]
+    [ValidatePattern('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')]
+    [string]$TenantId,
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
     [string]$OutputDirectory = (Join-Path $PSScriptRoot "..\..\Reports")
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-if (-not (Get-Module -ListAvailable -Name Az.Accounts) -or -not (Get-Module -ListAvailable -Name Az.Resources)) {
-    throw "Install required modules: Install-Module Az.Accounts, Az.Resources -Scope CurrentUser"
-}
-Import-Module Az.Accounts
-Import-Module Az.Resources
-if (-not (Get-AzContext)) { Connect-AzAccount | Out-Null }
-if ($SubscriptionId) { Set-AzContext -SubscriptionId $SubscriptionId | Out-Null }
-$context = Get-AzContext
-if (-not $context) { throw "No Azure context is available." }
-New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+. (Join-Path $PSScriptRoot "..\Private\Initialize-AzureAdministrationContext.ps1")
+$context = Initialize-AzureAdministrationContext -SubscriptionId $SubscriptionId -TenantId $TenantId -RequiredModules @("Az.Accounts", "Az.Resources")
+New-Item -ItemType Directory -Path $OutputDirectory -Force -ErrorAction Stop | Out-Null
 $reportPath = Join-Path $OutputDirectory ("Azure-Resources-{0}.csv" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
-$resources = Get-AzResource
+$resources = Get-AzResource -ErrorAction Stop
 $report = $resources | Sort-Object ResourceGroupName,ResourceType,Name | Select-Object Name,ResourceGroupName,ResourceType,Location,ResourceId,SubscriptionId
-$report | Export-Csv -Path $reportPath -NoTypeInformation -Encoding utf8
+$report | Export-Csv -LiteralPath $reportPath -NoTypeInformation -Encoding utf8 -ErrorAction Stop
 Write-Host "Subscription: $($context.Subscription.Name) ($($context.Subscription.Id))"
-Write-Host "Exported $($report.Count) resources to $reportPath" -ForegroundColor Green
+Write-Host "Exported $(@($report).Count) resources to $reportPath" -ForegroundColor Green
