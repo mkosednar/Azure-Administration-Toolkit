@@ -66,4 +66,12 @@ Describe "Initialize-AzureAdministrationContext" {
         } -ParameterFilter { $ListAvailable }
         { Initialize-AzureAdministrationContext -SubscriptionId "11111111-1111-1111-1111-111111111111" -RequiredModules @("Az.Accounts", "Az.Resources") } | Should -Throw "*Install-Module Az.Resources*"
     }
+
+    It "signs in to the requested tenant and fails closed if the resulting tenant still differs" {
+        $requestedTenant = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+        {
+            Initialize-AzureAdministrationContext -SubscriptionId "11111111-1111-1111-1111-111111111111" -TenantId $requestedTenant -RequiredModules @("Az.Accounts")
+        } | Should -Throw "*tenant does not match requested tenant*"
+        Should -Invoke Connect-AzAccount -Times 1 -ParameterFilter { $Tenant -eq $requestedTenant }
+    }
 }
