@@ -1,9 +1,17 @@
 BeforeAll {
     $repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $repoRoot "Private/Initialize-AzureAdministrationContext.ps1")
-    function Get-AzContext {}
-    function Connect-AzAccount {}
-    function Set-AzContext {}
+
+    # Lightweight command stubs let Pester mock Az cmdlets without installing Az modules.
+    function Get-AzContext {
+        param([string]$ErrorAction)
+    }
+    function Connect-AzAccount {
+        param([string]$Tenant, [string]$ErrorAction)
+    }
+    function Set-AzContext {
+        param([string]$SubscriptionId, [string]$ErrorAction)
+    }
 }
 
 Describe "PowerShell parser" {
