@@ -66,7 +66,7 @@ The template enforces HTTPS, TLS 1.2, disables anonymous blob access and disable
 Run the Pester 5 suite from the repository root:
 
 ~~~powershell
-Install-Module Pester -MinimumVersion 5.0.0 -Scope CurrentUser -Force
+Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force
 Invoke-Pester -Path ./tests -Output Detailed
 ~~~
 
@@ -78,7 +78,7 @@ Read-only scripts still access subscription metadata. Protect generated reports.
 
 ## Validation status
 
-The repository has not yet been validated against a live Azure subscription. The PowerShell/Pester suite is included for CI and must pass before relying on it. Validate module/API versions, permissions, policy and outputs in a test subscription before production use.
+The repository has not yet been validated against a live Azure subscription. The PowerShell parser and Pester 5.7.1 suite pass in GitHub Actions. Live Azure cmdlet behavior, permissions, policy and query outputs have not been integration-tested; validate these in a non-production subscription before production use.
 
 ## License
 
