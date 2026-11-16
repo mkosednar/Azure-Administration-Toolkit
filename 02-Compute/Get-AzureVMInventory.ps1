@@ -1,22 +1,22 @@
 [CmdletBinding()]
 param(
+    [Parameter(Mandatory)]
+    [ValidatePattern('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')]
     [string]$SubscriptionId,
+    [Parameter()]
+    [ValidatePattern('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')]
+    [string]$TenantId,
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
     [string]$OutputDirectory = (Join-Path $PSScriptRoot "..\..\Reports")
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-if (-not (Get-Module -ListAvailable -Name Az.Accounts) -or -not (Get-Module -ListAvailable -Name Az.Compute)) {
-    throw "Install required modules: Install-Module Az.Accounts, Az.Compute -Scope CurrentUser"
-}
-Import-Module Az.Accounts
-Import-Module Az.Compute
-if (-not (Get-AzContext)) { Connect-AzAccount | Out-Null }
-if ($SubscriptionId) { Set-AzContext -SubscriptionId $SubscriptionId | Out-Null }
-$context = Get-AzContext
-if (-not $context) { throw "No Azure context is available." }
-New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+. (Join-Path $PSScriptRoot "..\Private\Initialize-AzureAdministrationContext.ps1")
+$context = Initialize-AzureAdministrationContext -SubscriptionId $SubscriptionId -TenantId $TenantId -RequiredModules @("Az.Accounts", "Az.Compute")
+New-Item -ItemType Directory -Path $OutputDirectory -Force -ErrorAction Stop | Out-Null
 $reportPath = Join-Path $OutputDirectory ("Azure-VMs-{0}.csv" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
-$vms = Get-AzVM -Status
+$vms = Get-AzVM -Status -ErrorAction Stop
 $report = foreach ($vm in $vms) {
     [pscustomobject]@{
         Name = $vm.Name
@@ -29,6 +29,6 @@ $report = foreach ($vm in $vms) {
         Id = $vm.Id
     }
 }
-$report | Export-Csv -Path $reportPath -NoTypeInformation -Encoding utf8
-Write-Host "Subscription: $($context.Subscription.Name)"
-Write-Host "Exported $($report.Count) VMs to $reportPath" -ForegroundColor Green
+$report | Export-Csv -LiteralPath $reportPath -NoTypeInformation -Encoding utf8 -ErrorAction Stop
+Write-Host "Subscription: $($context.Subscription.Name) ($($context.Subscription.Id))"
+Write-Host "Exported $(@($report).Count) VMs to $reportPath" -ForegroundColor Green
