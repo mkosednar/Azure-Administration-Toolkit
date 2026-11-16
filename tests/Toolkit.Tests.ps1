@@ -1,6 +1,7 @@
 BeforeAll {
     $repoRoot = Split-Path -Parent $PSScriptRoot
     . (Join-Path $repoRoot "Private/Initialize-AzureAdministrationContext.ps1")
+    . (Join-Path $repoRoot "Private/ConvertTo-AzureVMInventoryRecord.ps1")
 
     # Lightweight command stubs let Pester mock Az cmdlets without installing Az modules.
     function Get-AzContext {
@@ -73,5 +74,62 @@ Describe "Initialize-AzureAdministrationContext" {
             Initialize-AzureAdministrationContext -SubscriptionId "11111111-1111-1111-1111-111111111111" -TenantId $requestedTenant -RequiredModules @("Az.Accounts")
         } | Should -Throw "*tenant does not match requested tenant*"
         Should -Invoke Connect-AzAccount -Times 1 -ParameterFilter { $Tenant -eq $requestedTenant }
+    }
+}
+
+Describe "ConvertTo-AzureVMInventoryRecord" {
+    It "projects the available VM inventory fields" {
+        $vm = [pscustomobject]@{
+            Name = "vm-test"
+            ResourceGroupName = "rg-test"
+            Location = "westeurope"
+            HardwareProfile = [pscustomobject]@{ VmSize = "Standard_B2s" }
+            Statuses = @([pscustomobject]@{ Code = "PowerState/running"; DisplayStatus = "VM running" })
+            StorageProfile = [pscustomobject]@{ OsDisk = [pscustomobject]@{ OsType = "Linux" } }
+            ProvisioningState = "Succeeded"
+            Id = "/subscriptions/test/resourceGroups/rg-test/providers/Microsoft.Compute/virtualMachines/vm-test"
+        }
+
+        $record = ConvertTo-AzureVMInventoryRecord -VirtualMachine $vm
+
+        $record.Name | Should -Be "vm-test"
+        $record.VmSize | Should -Be "Standard_B2s"
+        $record.PowerState | Should -Be "VM running"
+        $record.OsType | Should -Be "Linux"
+        $record.ProvisioningState | Should -Be "Succeeded"
+    }
+
+    It "returns null for missing nested VM properties without throwing" {
+        $vm = [pscustomobject]@{
+            Name = "vm-incomplete"
+            ResourceGroupName = "rg-test"
+            Location = "westeurope"
+            HardwareProfile = $null
+            Statuses = $null
+            StorageProfile = $null
+            ProvisioningState = $null
+            Id = "/subscriptions/test/resourceGroups/rg-test/providers/Microsoft.Compute/virtualMachines/vm-incomplete"
+        }
+
+        { $script:record = ConvertTo-AzureVMInventoryRecord -VirtualMachine $vm } | Should -Not -Throw
+        $record.VmSize | Should -BeNullOrEmpty
+        $record.PowerState | Should -BeNullOrEmpty
+        $record.OsType | Should -BeNullOrEmpty
+    }
+
+    It "handles a storage profile without an OS disk" {
+        $vm = [pscustomobject]@{
+            Name = "vm-no-disk"
+            ResourceGroupName = "rg-test"
+            Location = "westeurope"
+            HardwareProfile = [pscustomobject]@{ VmSize = "Standard_B2s" }
+            Statuses = @()
+            StorageProfile = [pscustomobject]@{ OsDisk = $null }
+            ProvisioningState = "Succeeded"
+            Id = "vm-no-disk"
+        }
+
+        $record = ConvertTo-AzureVMInventoryRecord -VirtualMachine $vm
+        $record.OsType | Should -BeNullOrEmpty
     }
 }
